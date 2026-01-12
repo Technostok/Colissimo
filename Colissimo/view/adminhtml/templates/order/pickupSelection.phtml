@@ -111,7 +111,9 @@ if (in_array($lpcPrView, ['gmaps', 'leaflet'])) {
         <?php if ($lpcCustomizeWidget) { ?>
             <input type="hidden" id="lpc_color_1" value="<?= $block->escapeHtmlAttr($lpcAddressTextColor) ?>">
             <input type="hidden" id="lpc_color_2" value="<?= $block->escapeHtmlAttr($lpcListTextColor) ?>">
-            <input type="hidden" id="lpc_font" value="<?= $block->escapeHtmlAttr($lpcWidgetFont) ?>">
+            <?php if (!empty($lpcWidgetFont)) { ?>
+                <input type="hidden" id="lpc_font" value="<?= $block->escapeHtmlAttr($lpcWidgetFont) ?>">
+            <?php } ?>
         <?php } ?>
     <?php } else { ?>
         <div id="lpc_error_pr" style="display: none">

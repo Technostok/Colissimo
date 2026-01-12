@@ -13,9 +13,15 @@ namespace LaPoste\Colissimo\Model\Carrier;
 
 use LaPoste\Colissimo\Helper\CountryOffer;
 use LaPoste\Colissimo\Model\Config\Source\CustomsCategory;
+use LaPoste\Colissimo\Model\Config\Source\HazmatCategories;
+use LaPoste\Colissimo\Setup\Patch\Data\HazmatPatch;
+use Magento\Catalog\Api\CategoryRepositoryInterface;
+use Magento\Catalog\Api\ProductRepositoryInterface;
+use Magento\Catalog\Model\Category;
 use Magento\Catalog\Model\ProductRepository;
 use Magento\Framework\Message\ManagerInterface;
 use LaPoste\Colissimo\Model\AccountApi;
+use Magento\Sales\Model\Order\Shipment;
 
 class GenerateLabelPayload implements \LaPoste\Colissimo\Api\Carrier\GenerateLabelPayload
 {
@@ -25,7 +31,9 @@ class GenerateLabelPayload implements \LaPoste\Colissimo\Api\Carrier\GenerateLab
     const RETURN_LABEL_LETTER_MARK = 'R';
     const RETURN_TYPE_CHOICE_NO_RETURN = 3;
 
+    const FR_COUNTRY_CODE = 'FR';
     const US_COUNTRY_CODE = 'US';
+    const GB_COUNTRY_CODE = 'GB';
     const COUNTRIES_NEEDING_STATE = ['CA', self::US_COUNTRY_CODE];
     const COUNTRIES_WITH_PARTNER_SHIPPING = ['AT', 'BE', 'DE', 'IT', 'LU'];
 
@@ -64,6 +72,10 @@ class GenerateLabelPayload implements \LaPoste\Colissimo\Api\Carrier\GenerateLab
 
     protected $messageManager;
 
+    protected CategoryRepositoryInterface $categoryRepositoryInterface;
+
+    protected ProductRepositoryInterface $productRepositoryInterface;
+
     private AccountApi $accountApi;
 
     public function __construct(
@@ -78,6 +90,8 @@ class GenerateLabelPayload implements \LaPoste\Colissimo\Api\Carrier\GenerateLab
         \Magento\Framework\App\ProductMetadataInterface $productMetadata,
         \Magento\Catalog\Model\ProductRepository $productRepository,
         \Magento\Framework\Message\ManagerInterface $messageManager,
+        CategoryRepositoryInterface $categoryRepositoryInterface,
+        ProductRepositoryInterface $productRepositoryInterface,
         AccountApi $accountApi
     ) {
         $this->payload = [
@@ -99,6 +113,8 @@ class GenerateLabelPayload implements \LaPoste\Colissimo\Api\Carrier\GenerateLab
         $this->productMetadata = $productMetadata;
         $this->productRepository = $productRepository;
         $this->messageManager = $messageManager;
+        $this->categoryRepositoryInterface = $categoryRepositoryInterface;
+        $this->productRepositoryInterface = $productRepositoryInterface;
         $this->accountApi = $accountApi;
 
         $this->eoriAdded = false;
@@ -353,7 +369,7 @@ class GenerateLabelPayload implements \LaPoste\Colissimo\Api\Carrier\GenerateLab
     {
         if (null === $delay) {
             $delay = $this->helperData->getAdvancedConfigValue(
-                'lpc_labels/averagePreparationDelay',
+                'lpc_checkout/averagePreparationDelay',
                 $storeId
             );
         }
@@ -460,13 +476,14 @@ class GenerateLabelPayload implements \LaPoste\Colissimo\Api\Carrier\GenerateLab
     }
 
     public function withCustomsDeclaration(
-        \Magento\Sales\Model\Order\Shipment $shipment,
+        Shipment $shipment,
         array $items,
         $destinationCountryId,
         $destinationPostcode,
         $storeId = null,
         $originCountryId = 'fr',
-        $shippingType = null
+        $shippingType = null,
+        $shippingMethodUsed = ''
     ) {
         if (empty($shippingType)) {
             $shippingType = self::LABEL_TYPE_CLASSIC;
@@ -580,7 +597,12 @@ class GenerateLabelPayload implements \LaPoste\Colissimo\Api\Carrier\GenerateLab
             'value' => $customsCategory,
         ];
 
-        if ('GB' === $destinationCountryId && !$this->isReturnLabel) {
+        $midCode = $this->helperData->getAdvancedConfigValue('lpc_labels/midCode', $storeId);
+        if (!empty($midCode) && self::US_COUNTRY_CODE === $destinationCountryId) {
+            $this->payload['letter']['customsDeclarations']['comments'] = 'MID: ' . $midCode;
+        }
+
+        if (self::GB_COUNTRY_CODE === $destinationCountryId && !$this->isReturnLabel) {
             $vatNumber = $this->helperData->getConfigValue('general/store_information/merchant_vat_number', $storeId);
 
             if (0 === $vatNumber) {
@@ -608,13 +630,18 @@ class GenerateLabelPayload implements \LaPoste\Colissimo\Api\Carrier\GenerateLab
             ];
         }
 
-        if ('GB' === $destinationCountryId) {
+        $eoriNumber = '';
+        if (self::GB_COUNTRY_CODE === $destinationCountryId) {
             $eoriNumber = $this->helperData->getAdvancedConfigValue('lpc_labels/eoriUkNumber', $storeId);
 
             if ($order->getTotalInvoiced() >= 1000) {
                 $eoriNumber .= ' ' . $this->helperData->getAdvancedConfigValue('lpc_labels/eoriNumber', $storeId);
             }
-        } else {
+        } elseif (self::US_COUNTRY_CODE === $destinationCountryId) {
+            $eoriNumber = $this->helperData->getAdvancedConfigValue('lpc_labels/eoriUSANumber', $storeId);
+        }
+
+        if (empty($eoriNumber)) {
             $eoriNumber = $this->helperData->getAdvancedConfigValue('lpc_labels/eoriNumber', $storeId);
         }
 
@@ -647,7 +674,7 @@ class GenerateLabelPayload implements \LaPoste\Colissimo\Api\Carrier\GenerateLab
         return $this;
     }
 
-    public function withDdp($shipment, $shippingMethod, $recipient)
+    public function withDdp($shipment, $shippingMethod, $recipient, $destinationCountryId, $storeId = null)
     {
         if (!in_array($shippingMethod, [Colissimo::CODE_SHIPPING_METHOD_DOMICILE_AS_DDP, Colissimo::CODE_SHIPPING_METHOD_EXPERT_DDP])) {
             $this->payload['letter']['parcel']['ddp'] = 'false';
@@ -659,6 +686,14 @@ class GenerateLabelPayload implements \LaPoste\Colissimo\Api\Carrier\GenerateLab
         if (empty($description)) {
             $description = implode(', ', $this->articleDescriptions);
         }
+
+        $midCode = $this->helperData->getAdvancedConfigValue('lpc_labels/midCode', $storeId);
+        if (!empty($midCode) && self::US_COUNTRY_CODE === $destinationCountryId) {
+            $midCode = ' - MID: ' . $midCode;
+            $description = substr($description, 0, 64 - strlen($midCode));
+            $description .= $midCode;
+        }
+
         $this->payload['letter']['customsDeclarations']['description'] = substr($description, 0, 64);
 
         // Must have the state code for US and CA
@@ -675,14 +710,14 @@ class GenerateLabelPayload implements \LaPoste\Colissimo\Api\Carrier\GenerateLab
         }
 
         // Must have dimensions
-        $lenght = $shipment->getLpcDdpLength();
+        $length = $shipment->getLpcDdpLength();
         $width = $shipment->getLpcDdpWidth();
         $height = $shipment->getLpcDdpHeight();
-        if (empty($lenght) || empty($width) || empty($height)) {
+        if (empty($length) || empty($width) || empty($height)) {
             $this->logger->error('Package dimensions missing for DDP label generation', ['shippingMethod' => $shippingMethod]);
             throw new \Magento\Framework\Exception\LocalizedException(__('Please enter the package dimensions'));
         }
-        $dimensions = [(int) $lenght, (int) $width, (int) $height];
+        $dimensions = [(int) $length, (int) $width, (int) $height];
         sort($dimensions);
         $this->payload['fields']['field'][] = [
             'key'   => 'LENGTH',
@@ -1256,5 +1291,152 @@ class GenerateLabelPayload implements \LaPoste\Colissimo\Api\Carrier\GenerateLab
         ];
 
         return $this;
+    }
+
+    public function withHazmat(
+        bool $isAutomaticGeneration,
+        Shipment $shipment,
+        array $items,
+        $originCountryId,
+        $destinationCountryId,
+        $storeId
+    ) {
+        if (!$this->accountApi->isHazmatOptionActive()) {
+            return $this;
+        }
+
+        $hazardousMaterials = [];
+        $totalHazardousQuantity = 0;
+
+        foreach ($items as $piece) {
+            $orderItem = $this->orderItemRepository->get($piece['order_item_id']);
+            $product = $orderItem->getProduct();
+
+            $productHazmatCategorySlug = $this->getProductHazmatCategorySlug($product, $storeId);
+
+            if (empty($productHazmatCategorySlug)) {
+                continue;
+            }
+
+            if (empty($hazardousMaterials[$productHazmatCategorySlug])) {
+                $hazardousMaterials[$productHazmatCategorySlug] = 0;
+            }
+
+            if (!isset($piece['weight']) || $piece['weight'] <= 0) {
+                $piece['weight'] = $product->getWeight();
+            }
+
+            if (empty($piece['weight'])) {
+                continue;
+            }
+
+            $fromWeight = number_format($piece['weight'], 2, '.', '');
+            $pieceWeightInKG = $this->helperData->convertWeightToKilogram($fromWeight, null, $storeId);
+
+            $hazardousQuantity = $pieceWeightInKG * 1000 * $piece['qty'];
+            $hazardousMaterials[$productHazmatCategorySlug] += $hazardousQuantity;
+            $totalHazardousQuantity += $hazardousQuantity;
+        }
+
+        if (empty($hazardousMaterials)) {
+            return $this;
+        }
+
+        // Only France to France
+        if (self::FR_COUNTRY_CODE !== $destinationCountryId || self::FR_COUNTRY_CODE !== $originCountryId) {
+            throw new \Exception(
+                __('Hazardous materials are not allowed outside France.')
+            );
+        }
+
+        if ($this->getIsReturnLabel()) {
+            throw new \Exception(
+                __('Hazardous materials are not allowed for return parcels.')
+            );
+        }
+
+        $highestHazmatCategoryCode = 'A';
+        $lowestHazmatCategory = '';
+        foreach (HazmatCategories::HAZMAT_CATEGORIES as $slug => $category) {
+            if (empty($hazardousMaterials[$slug])) {
+                continue;
+            }
+
+            $highestHazmatCategoryCode = $category['code'];
+
+            if (empty($lowestHazmatCategory)) {
+                $lowestHazmatCategory = $slug;
+            }
+
+            if ($isAutomaticGeneration && !empty($category['max_weight']) && $hazardousMaterials[$slug] > $category['max_weight']) {
+                throw new \Exception(
+                    sprintf(
+                        __('Hazardous materials %1$s exceed the maximum allowed weight: %2$d/%3$dg.'),
+                        __($category['label']),
+                        $hazardousMaterials[$slug],
+                        $category['max_weight']
+                    ) . ' ' . __('Please ship this order in multiple parcels.')
+                );
+            }
+        }
+
+        if (
+            $isAutomaticGeneration
+            && !empty($hazmatCatsById[$lowestHazmatCategory]['max_weight'])
+            && $totalHazardousQuantity > $hazmatCatsById[$lowestHazmatCategory]['max_weight']
+        ) {
+            throw new \Exception(
+                sprintf(
+                    __('The total amount of hazardous materials exceeds the maximum allowed weight of %dg.'),
+                    $hazmatCatsById[$lowestHazmatCategory]['max_weight']
+                ) . ' ' . __('Please ship this order in multiple parcels.')
+            );
+        }
+
+        // TODO to check, doc says boolean but gives "1" as the example, while hazmatPrintLogo has "true" in its example
+        $this->payload['letter']['parcel']['hazmatFlag'] = true;
+        $this->payload['letter']['parcel']['hazmatCategory'] = $highestHazmatCategoryCode;
+        $this->payload['letter']['parcel']['hazmatPrintLogo'] = true;
+
+        return $this;
+    }
+
+    private function getProductHazmatCategorySlug(object $product, $storeId): ?string
+    {
+        $loadedProduct = $this->productRepositoryInterface->getById($product->getId());
+        $hazmatCategoryId = $loadedProduct->getData(HazmatPatch::HAZMAT_ATTRIBUTE_CODE);
+
+        $hazmatCategories = [];
+        if (!empty($hazmatCategoryId)) {
+            return HazmatCategories::getCategorySlugFromId($hazmatCategoryId);
+        }
+
+        static $loadedCategories = [];
+
+        $productCategoryIds = $product->getCategoryIds();
+        foreach ($productCategoryIds as $categoryId) {
+            try {
+                if (!isset($loadedCategories[$categoryId])) {
+                    $loadedCategories[$categoryId] = $this->categoryRepositoryInterface->get($categoryId, $storeId);
+                }
+
+                $hazmatCategoryId = $loadedCategories[$categoryId]->getData(HazmatPatch::HAZMAT_ATTRIBUTE_CODE_CATEGORY);
+                if (!empty($hazmatCategoryId)) {
+                    $hazmatCategories[] = HazmatCategories::getCategorySlugFromId($hazmatCategoryId);
+                }
+            } catch (\Exception $e) {
+                // category not found or inactive
+            }
+        }
+
+        $hazmatCategories = array_filter($hazmatCategories);
+
+        if (empty($hazmatCategories)) {
+            return null;
+        }
+
+        sort($hazmatCategories);
+
+        return array_pop($hazmatCategories);
     }
 }

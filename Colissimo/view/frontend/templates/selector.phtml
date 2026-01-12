@@ -59,7 +59,10 @@ if (in_array($lpcPrView, ['gmaps', 'leaflet'])) {
                 <input type="text" id="lpc_modal_relays_search_zipcode" class="lpc_modal_relays_search_input" placeholder="<?= $block->escapeHtmlAttr(__('Zipcode')) ?>">
                 <input type="text" id="lpc_modal_relays_search_city" class="lpc_modal_relays_search_input" placeholder="<?= $block->escapeHtmlAttr(__('City')) ?>">
                 <button id="lpc_layer_button_search" type="button"><?= $block->escapeHtml(__('Search')) ?></button>
-                <img id="lpc_layer_relays_loader" src="<?= $block->escapeUrl($this->getViewFileUrl('LaPoste_Colissimo::images/loading.gif')); ?>" alt="Loading..." style="display: none">
+                <img id="lpc_layer_relays_loader"
+                     src="<?= $block->escapeUrl($this->getViewFileUrl('LaPoste_Colissimo::images/loading.gif')); ?>"
+                     alt="Loading..."
+                     style="display: none">
                 <?php if ($maxRelayPoint < 20) { ?>
                     <div id="lpc_modal_relays_display_more"><a href="#"><?= $block->escapeHtml(__('Display more pickup points')); ?></a></div>
                 <?php } ?>
@@ -97,7 +100,9 @@ if (in_array($lpcPrView, ['gmaps', 'leaflet'])) {
         <?php if ($lpcCustomizeWidget) { ?>
             <input type="hidden" id="lpc_color_1" value="<?= $block->escapeHtmlAttr($lpcAddressTextColor) ?>">
             <input type="hidden" id="lpc_color_2" value="<?= $block->escapeHtmlAttr($lpcListTextColor) ?>">
-            <input type="hidden" id="lpc_font" value="<?= $block->escapeHtmlAttr($lpcWidgetFont) ?>">
+            <?php if (!empty($lpcWidgetFont)) { ?>
+                <input type="hidden" id="lpc_font" value="<?= $block->escapeHtmlAttr($lpcWidgetFont) ?>">
+            <?php } ?>
         <?php } ?>
     <?php } else { ?>
         <div id="lpc_error_pr" style="display: none">

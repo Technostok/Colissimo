@@ -11,24 +11,12 @@
 
 namespace LaPoste\Colissimo\Model;
 
-use LaPoste\Colissimo\Helper\Data;
-use LaPoste\Colissimo\Logger\Colissimo;
+use LaPoste\Colissimo\Model\Config\Source\HazmatCategories;
 
 class AccountApi extends RestApi implements \LaPoste\Colissimo\Api\AccountApi
 {
     const API_BASE_URL = 'https://ws.colissimo.fr/api-ewe/v1/rest/';
     const CONTRACT_TYPE_FACILITE = 'FACILITE';
-
-    protected $logger;
-    protected $helperData;
-
-    public function __construct(
-        Data $helperData,
-        Colissimo $logger
-    ) {
-        $this->helperData = $helperData;
-        $this->logger = $logger;
-    }
 
     protected function getApiUrl($action)
     {
@@ -37,6 +25,11 @@ class AccountApi extends RestApi implements \LaPoste\Colissimo\Api\AccountApi
 
     public function getAutologinURLs(): array
     {
+        static $urls = null;
+        if (!empty($urls)) {
+            return $urls;
+        }
+
         try {
             $response = $this->query('urlCboxExt');
 
@@ -62,6 +55,8 @@ class AccountApi extends RestApi implements \LaPoste\Colissimo\Api\AccountApi
 
             return [];
         }
+
+        $urls = $response;
 
         return $response;
     }
@@ -98,6 +93,11 @@ class AccountApi extends RestApi implements \LaPoste\Colissimo\Api\AccountApi
 
     public function getAccountInformation()
     {
+        static $accountInformation = null;
+        if (!empty($accountInformation)) {
+            return $accountInformation;
+        }
+
         try {
             $response = $this->query('additionalinformations');
 
@@ -133,7 +133,32 @@ class AccountApi extends RestApi implements \LaPoste\Colissimo\Api\AccountApi
             return false;
         }
 
+        $accountInformation = $response;
+
         return $response;
+    }
+
+    public function isHazmatOptionActive(): bool
+    {
+        $accountInformation = $this->getAccountInformation();
+
+        return !empty($accountInformation['hazmatStatus']);
+    }
+
+    public function getHazmatCategories(): array
+    {
+        $accountInformation = $this->getAccountInformation();
+
+        if (!$this->isHazmatOptionActive() || empty($accountInformation['hazmatCategories'])) {
+            return [];
+        }
+
+        $hazmatCategories = HazmatCategories::HAZMAT_CATEGORIES;
+        foreach ($hazmatCategories as $key => $hazmatCategory) {
+            $hazmatCategories[$key]['active'] = in_array($hazmatCategory['code'], $accountInformation['hazmatCategories']);
+        }
+
+        return $hazmatCategories;
     }
 
     public function query(

@@ -17,5 +17,7 @@ interface AccountApi
 
     public function isCgvAccepted(): bool;
 
+    public function isHazmatOptionActive(): bool;
+
     public function getAccountInformation();
 }

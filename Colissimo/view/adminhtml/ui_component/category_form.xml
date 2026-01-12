@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<form xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
+    <fieldset name="content">
+        <field name="lpc_hazmat_code_category">
+            <argument name="data" xsi:type="array">
+                <item name="config" xsi:type="array">
+                    <item name="dataType" xsi:type="string">int</item>
+                    <item name="formElement" xsi:type="string">select</item>
+                    <item name="label" xsi:type="string" translate="true">Default Colissimo hazmat category</item>
+                    <item name="dataScope" xsi:type="string">lpc_hazmat_code_category</item>
+                    <item name="sortOrder" xsi:type="number">100</item>
+                    <item name="options" xsi:type="array">
+                        <!-- The options will come from the source model automatically -->
+                    </item>
+                    <item name="default" xsi:type="number">0</item>
+                </item>
+            </argument>
+            <formElements>
+                <select>
+                    <settings>
+                        <options class="LaPoste\Colissimo\Model\Config\Source\HazmatCategories"/>
+                    </settings>
+                </select>
+            </formElements>
+        </field>
+    </fieldset>
+</form>

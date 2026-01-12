@@ -116,7 +116,6 @@ class BordereauGeneratorApi implements \LaPoste\Colissimo\Api\BordereauGenerator
         return $response;
     }
 
-
     public function getBordereauByNumber($bordereauNumber)
     {
         $dataLogger = [
@@ -130,7 +129,6 @@ class BordereauGeneratorApi implements \LaPoste\Colissimo\Api\BordereauGenerator
         ];
 
         if ('api' === $this->helperData->getAdvancedConfigValue('lpc_general/connectionMode')) {
-            // Todo: API currently not working via apiKey
             $apiKey = $this->helperData->getAdvancedConfigValue('lpc_general/api_key');
             $dataLogger['apiKey'] = $apiKey;
             $request['stream_context'] = stream_context_create(

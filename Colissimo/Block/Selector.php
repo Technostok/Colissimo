@@ -86,7 +86,7 @@ class Selector extends Template
 
     public function lpcGetAveragePreparationDelay()
     {
-        return $this->helperData->getAdvancedConfigValue('lpc_pr_front/averagePreparationDelay');
+        return $this->helperData->getAdvancedConfigValue('lpc_checkout/averagePreparationDelay');
     }
 
     public function lpcGetRelayTypes()
@@ -126,25 +126,7 @@ class Selector extends Template
 
     public function lpcGetFontWidgetPr()
     {
-        $fontValue = $this->helperData->getAdvancedConfigValue('lpc_pr_front/prDisplayFont');
-
-        $fontNames = [
-            'georgia'       => 'Georgia, serif',
-            'palatino'      => '"Palatino Linotype", "Book Antiqua", Palatino, serif',
-            'times'         => '"Times New Roman", Times, serif',
-            'arial'         => 'Arial, Helvetica, sans-serif',
-            'arialblack'    => '"Arial Black", Gadget, sans-serif',
-            'comic'         => '"Comic Sans MS", cursive, sans-serif',
-            'impact'        => 'Impact, Charcoal, sans-serif',
-            'lucida'        => '"Lucida Sans Unicode", "Lucida Grande", sans-serif',
-            'tahoma'        => 'Tahoma, Geneva, sans-serif',
-            'trebuchet'     => '"Trebuchet MS", Helvetica, sans-serif',
-            'verdana'       => 'Verdana, Geneva, sans-serif',
-            'courier'       => '"Courier New", Courier, monospace',
-            'lucidaconsole' => '"Lucida Console", Monaco, monospace',
-        ];
-
-        return $fontNames[$fontValue];
+        return $this->helperData->getFont('lpc_pr_front/prDisplayFont');
     }
 
     /**

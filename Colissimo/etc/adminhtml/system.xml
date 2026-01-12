@@ -182,7 +182,7 @@
             <resource>LaPoste_Colissimo::colissimo_config</resource>
             <group id="lpc_onboarding" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="1" translate="label">
                 <label>Module setup</label>
-                <field id="documentation" type="button" sortOrder="1" showInDefault="1" showInWebsite="0" showInStore="0">
+                <field id="documentation" type="text" sortOrder="1" showInDefault="1" showInWebsite="0" showInStore="0">
                     <frontend_model>LaPoste\Colissimo\Block\System\Config\Field\Onboarding</frontend_model>
                 </field>
             </group>
@@ -238,7 +238,71 @@
                     <frontend_model>LaPoste\Colissimo\Block\System\Config\Cgv</frontend_model>
                 </field>
             </group>
-            <group id="lpc_labels" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="3" translate="label">
+            <group id="lpc_checkout" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="3" translate="label">
+                <label>Checkout page</label>
+                <field id="averagePreparationDelay" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="1" translate="label comment" type="text">
+                    <label>Average preparation delay</label>
+                    <comment>Your average delay for preparation of a shipment, in days.</comment>
+                    <validate>validate-number validate-zero-or-greater</validate>
+                </field>
+                <field id="displayDeliveryDate" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="2" translate="label comment" type="select">
+                    <label>Display the expected delivery date</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>Choose to add the expected delivery date below the method name in the checkout.</comment>
+                </field>
+                <field id="deliveryDateDepositLocation" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="3" translate="label comment" type="select">
+                    <label>Deposit location</label>
+                    <source_model>LaPoste\Colissimo\Model\Config\Source\DepositLocation</source_model>
+                    <comment>Select the location used to deposit your parcels.</comment>
+                    <depends>
+                        <field id="lpc_advanced/lpc_checkout/displayDeliveryDate">1</field>
+                    </depends>
+                </field>
+                <field id="deliveryDateCuttoffTimes" type="text" sortOrder="4" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <label>Cut Off hours</label>
+                    <frontend_model>LaPoste\Colissimo\Block\System\Config\Field\CuttOff</frontend_model>
+                    <depends>
+                        <field id="lpc_advanced/lpc_checkout/displayDeliveryDate">1</field>
+                    </depends>
+                </field>
+                <field id="deliveryDateFormat" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="5" translate="label comment" type="select">
+                    <label>Date format</label>
+                    <source_model>LaPoste\Colissimo\Model\Config\Source\DateFormat</source_model>
+                    <depends>
+                        <field id="lpc_advanced/lpc_checkout/displayDeliveryDate">1</field>
+                    </depends>
+                </field>
+                <field id="deliveryDateText" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="6" translate="label comment" type="text">
+                    <label>Text to display</label>
+                    <frontend_model>LaPoste\Colissimo\Block\System\Config\Field\DateText</frontend_model>
+                    <comment>Please include {date} in your text where the date should be shown.</comment>
+                    <depends>
+                        <field id="lpc_advanced/lpc_checkout/displayDeliveryDate">1</field>
+                    </depends>
+                </field>
+                <field id="deliveryDateColor" translate="label" sortOrder="7" type="text" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Text color</label>
+                    <frontend_model>LaPoste\Colissimo\Block\System\Config\ColorPicker</frontend_model>
+                    <depends>
+                        <field id="lpc_advanced/lpc_checkout/displayDeliveryDate">1</field>
+                    </depends>
+                </field>
+                <field id="deliveryDateFont" translate="label comment" sortOrder="8" type="select" showInDefault="1" showInWebsite="1" showInStore="1">
+                    <label>Text font</label>
+                    <source_model>LaPoste\Colissimo\Model\Config\Source\SelectFont</source_model>
+                    <depends>
+                        <field id="lpc_advanced/lpc_checkout/displayDeliveryDate">1</field>
+                    </depends>
+                </field>
+                <field id="deliveryDateSize" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="9" translate="label comment" type="select">
+                    <label>Text size</label>
+                    <source_model>LaPoste\Colissimo\Model\Config\Source\Size</source_model>
+                    <depends>
+                        <field id="lpc_advanced/lpc_checkout/displayDeliveryDate">1</field>
+                    </depends>
+                </field>
+            </group>
+            <group id="lpc_labels" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="4" translate="label">
                 <label>Outward labels</label>
                 <field id="isUsingColiShip" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="1" translate="label comment" type="select">
                     <label>Delegate label generation to ColiShip?</label>
@@ -304,14 +368,6 @@
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                     <comment>If enabled, each outward label generation will use Colissimo Insurance feature by default.</comment>
                 </field>
-                <field id="averagePreparationDelay" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="50" translate="label comment" type="text">
-                    <label>Average preparation delay</label>
-                    <comment>Your average delay for preparation of a shipment, in days.</comment>
-                    <validate>validate-number validate-zero-or-greater</validate>
-                    <depends>
-                        <field id="isUsingColiShip">0</field>
-                    </depends>
-                </field>
                 <field id="registeredMailLevel" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="55" translate="label comment" type="select">
                     <label>Registered mail level</label>
                     <source_model>LaPoste\Colissimo\Model\Config\Source\RegisteredMailLevel</source_model>
@@ -375,6 +431,20 @@
                         <field id="isUsingCustomsDeclarations">1</field>
                     </depends>
                 </field>
+                <field id="eoriUSANumber" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="91" translate="label comment" type="text">
+                    <label>United States EORI number</label>
+                    <comment>EORI number for delivery to United States</comment>
+                    <depends>
+                        <field id="isUsingCustomsDeclarations">1</field>
+                    </depends>
+                </field>
+                <field id="midCode" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="92" translate="label comment" type="text">
+                    <label>MID code for USA</label>
+                    <comment>The MID code is used by the USA customs to track where a product comes from. It is required and can be found by following %1.</comment>
+                    <depends>
+                        <field id="isUsingCustomsDeclarations">1</field>
+                    </depends>
+                </field>
                 <field id="cn23Number" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="95" translate="label comment" type="text">
                     <label>Number of CN23 documents to generate</label>
                     <comment>Please enter a number between 1 and 4</comment>
@@ -391,7 +461,18 @@
                     </depends>
                 </field>
             </group>
-            <group id="lpc_shipping" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="4" translate="label">
+            <group id="lpc_hazmat" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="4" translate="label">
+                <label>Hazardous materials</label>
+                <field id="extraCost" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="1" translate="label comment" type="select">
+                    <label>Add the extra cost to shipping price</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
+                    <comment>The clients will pay the extra cost for hazardous materials along with the shipping price.</comment>
+                </field>
+                <field id="presentation" type="text" sortOrder="2" showInDefault="1" showInWebsite="0" showInStore="0">
+                    <frontend_model>LaPoste\Colissimo\Block\System\Config\Field\Hazmat</frontend_model>
+                </field>
+            </group>
+            <group id="lpc_shipping" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="5" translate="label">
                 <label>Secured shipping</label>
                 <field id="domicileas_block_code" translate="label comment" type="text" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Set secured code during delivery</label>
@@ -409,7 +490,7 @@
                     <validate>validate-digits validate-not-negative-number</validate>
                 </field>
             </group>
-            <group id="lpc_return_labels" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="5" translate="label">
+            <group id="lpc_return_labels" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="6" translate="label">
                 <label>Return labels</label>
                 <field id="availableToCustomer" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Return label creation is available for the client</label>
@@ -471,7 +552,7 @@
                     <comment>Delay before deleting return label BLOB from database. Use 0 or leave empty to disable this purge.</comment>
                 </field>
             </group>
-            <group id="lpc_pr_front" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="6" translate="label">
+            <group id="lpc_pr_front" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="7" translate="label">
                 <label>Relay point</label>
                 <field id="prAutoSelect" translate="label comment" sortOrder="10" type="select" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Automatically select the nearest relay point</label>
@@ -515,7 +596,7 @@
                 <field id="prDisplayFont" translate="label comment" sortOrder="50" type="select" showInDefault="1" showInWebsite="1" showInStore="1">
                     <label>Font</label>
                     <comment>Font for texts inside the widget</comment>
-                    <source_model>LaPoste\Colissimo\Model\Config\Source\PRDisplayFont</source_model>
+                    <source_model>LaPoste\Colissimo\Model\Config\Source\SelectFont</source_model>
                     <depends>
                         <field id="lpc_advanced/lpc_pr_front/prCustomizeWidget">1</field>
                         <field id="lpc_advanced/lpc_pr_front/choosePRDisplayMode">widget</field>
@@ -543,7 +624,7 @@
                     </depends>
                 </field>
             </group>
-            <group id="lpc_bal" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="7" translate="label">
+            <group id="lpc_bal" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="8" translate="label">
                 <label>MailBox pick-up</label>
                 <field id="allowMailBoxPickUp" translate="label comment" type="select" sortOrder="1" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Allow MailBox Pickup</label>
@@ -551,7 +632,7 @@
                     <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
             </group>
-            <group id="lpc_ddp" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="8" translate="label">
+            <group id="lpc_ddp" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="9" translate="label">
                 <label>Delivery Duty Paid</label>
                 <field id="extracost_au" translate="label" type="text" sortOrder="1" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Option price for Australia</label>
@@ -620,7 +701,7 @@
                     <label>Message displayed when selecting the delivery method</label>
                 </field>
             </group>
-            <group id="lpc_debug" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="9" translate="label">
+            <group id="lpc_debug" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="10" translate="label">
                 <label>Debug and Development</label>
                 <field id="debugMode" translate="label comment" type="select" sortOrder="1" showInDefault="1" showInWebsite="0" showInStore="0">
                     <label>Debug Mode</label>
@@ -660,13 +741,13 @@
                     <frontend_model>LaPoste\Colissimo\Block\System\Config\Field\ContactUsButton</frontend_model>
                 </field>
             </group>
-            <group id="lpc_tutorials" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="10" translate="label">
+            <group id="lpc_tutorials" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="11" translate="label">
                 <label>Video tutorials</label>
                 <field id="video_tutorials" type="button" sortOrder="1" showInDefault="1" showInWebsite="0" showInStore="0">
                     <frontend_model>LaPoste\Colissimo\Block\System\Config\Field\Videos</frontend_model>
                 </field>
             </group>
-            <group id="lpc_feedback" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="11" translate="label">
+            <group id="lpc_feedback" showInDefault="1" showInStore="1" showInWebsite="1" sortOrder="12" translate="label">
                 <label>Module feedback</label>
                 <field id="feedback_form" type="text" sortOrder="1" showInDefault="1" showInWebsite="0" showInStore="0">
                     <frontend_model>LaPoste\Colissimo\Block\System\Config\Field\Feedback</frontend_model>

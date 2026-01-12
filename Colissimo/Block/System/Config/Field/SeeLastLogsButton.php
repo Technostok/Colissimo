@@ -19,7 +19,6 @@ class SeeLastLogsButton extends Field
 {
     const DEBUG_RELATIVE_FILEPATH = '/colissimo/debug.log';
 
-
     /**
      * @var string
      */

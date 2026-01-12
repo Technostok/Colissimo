@@ -10,21 +10,43 @@
 
 namespace LaPoste\Colissimo\Model\Carrier;
 
-use \LaPoste\Colissimo\Api\Carrier\OffersApi;
+use LaPoste\Colissimo\Api\Carrier\OffersApi;
 use LaPoste\Colissimo\Helper\Data;
 use LaPoste\Colissimo\Helper\CountryOffer;
 use LaPoste\Colissimo\Helper\Pdf;
-use LaPoste\Colissimo\Model\Shipping\ReturnLabelGenerator;
-use LaPoste\Colissimo\Model\PricesRepository;
 use LaPoste\Colissimo\Model\Config\Source\CustomsCategory;
-use \Magento\Shipping\Model\Carrier\AbstractCarrierOnline;
-use \Magento\Shipping\Model\Carrier\CarrierInterface;
-use \Magento\Framework\DataObject;
-use \Magento\Quote\Model\Quote\Address\RateRequest;
-use \Magento\Customer\Model\Session;
-use \Magento\Framework\ObjectManagerInterface;
-use \Magento\Framework\Api\SearchCriteriaBuilder;
-use \Magento\Sales\Model\Order;
+use LaPoste\Colissimo\Model\Config\Source\HazmatCategories;
+use LaPoste\Colissimo\Model\PricesRepository;
+use LaPoste\Colissimo\Model\Shipping\ReturnLabelGenerator;
+use LaPoste\Colissimo\Setup\Patch\Data\HazmatPatch;
+use Magento\Catalog\Api\CategoryRepositoryInterface;
+use Magento\Catalog\Api\ProductRepositoryInterface;
+use Magento\Catalog\Model\Category;
+use Magento\CatalogInventory\Api\StockRegistryInterface;
+use Magento\Customer\Model\Session;
+use Magento\Directory\Model\CountryFactory;
+use Magento\Directory\Model\CurrencyFactory;
+use Magento\Directory\Model\RegionFactory;
+use Magento\Framework\Api\SearchCriteriaBuilder;
+use Magento\Framework\App\Config\ScopeConfigInterface;
+use Magento\Framework\App\Request\Http;
+use Magento\Framework\App\RequestInterface;
+use Magento\Framework\DataObject;
+use Magento\Framework\ObjectManagerInterface;
+use Magento\Framework\Registry;
+use Magento\Framework\Stdlib\DateTime\TimeZone;
+use Magento\Framework\Xml\Security;
+use Magento\Quote\Model\Quote\Address\RateResult\ErrorFactory;
+use Magento\Quote\Model\Quote\Address\RateResult\MethodFactory;
+use Magento\Sales\Model\Order;
+use Magento\Quote\Model\Quote\Address\RateRequest;
+use Magento\Quote\Model\Quote\Address\RateResult\Method;
+use Magento\Shipping\Model\Carrier\AbstractCarrierOnline;
+use Magento\Shipping\Model\Carrier\CarrierInterface;
+use Magento\Shipping\Model\Rate\ResultFactory;
+use Magento\Shipping\Model\Simplexml\ElementFactory;
+use Magento\Shipping\Model\Tracking\Result\StatusFactory;
+use Psr\Log\LoggerInterface;
 
 class Colissimo extends AbstractCarrierOnline implements CarrierInterface
 {
@@ -37,6 +59,7 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
     const CODE_SHIPPING_METHOD_EXPERT = 'expert';
     const CODE_SHIPPING_METHOD_EXPERT_DDP = 'expertddp';
     const URL_SUIVI_COLISSIMO = "https://www.laposte.fr/outils/suivre-vos-envois?code={lpc_tracking_number}";
+    const AUTOMATIC_LABEL_GENERATION = 'colissimo_automatic_label_generation';
 
     const METHODS_CODES_TRANSLATIONS = [
         self::CODE_SHIPPING_METHOD_DOMICILE_SS     => 'Colissimo Domicile without signature',
@@ -75,6 +98,7 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
         self::PRODUCT_CODE_WITH_SIGNATURE,
         self::PRODUCT_CODE_RELAY,
     ];
+
     public const PRODUCT_CODE_INSURANCE_AVAILABLE = [
         self::PRODUCT_CODE_WITH_SIGNATURE,
         self::PRODUCT_CODE_WITH_SIGNATURE_OM,
@@ -129,61 +153,66 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
     protected $requestInterface;
     protected $requestQuery;
 
+    protected CategoryRepositoryInterface $categoryRepository;
+    protected ProductRepositoryInterface $productRepository;
+    protected Registry $registry;
+
     /**
      * Colissimo constructor.
      *
-     * @param \LaPoste\Colissimo\Api\Carrier\GenerateLabelPayload         $generateLabelPayload
-     * @param \LaPoste\Colissimo\Api\Carrier\LabellingApi                 $labellingApi
-     * @param \LaPoste\Colissimo\Logger\Colissimo                         $colissimoLogger
-     * @param \Magento\Framework\App\Config\ScopeConfigInterface          $scopeInterface
-     * @param \Magento\Quote\Model\Quote\Address\RateResult\ErrorFactory  $rateErrorFactory
-     * @param \Psr\Log\LoggerInterface                                    $logger
-     * @param \Magento\Framework\Xml\Security                             $xmlSecurity
-     * @param \Magento\Shipping\Model\Simplexml\ElementFactory            $xmlElFactory
-     * @param \Magento\Shipping\Model\Rate\ResultFactory                  $rateFactory
-     * @param \Magento\Quote\Model\Quote\Address\RateResult\MethodFactory $rateMethodFactory
-     * @param \Magento\Shipping\Model\Tracking\ResultFactory              $trackFactory
-     * @param \Magento\Shipping\Model\Tracking\Result\ErrorFactory        $trackErrorFactory
-     * @param \Magento\Shipping\Model\Tracking\Result\StatusFactory       $trackStatusFactory
-     * @param \Magento\Directory\Model\RegionFactory                      $regionFactory
-     * @param \Magento\Directory\Model\CountryFactory                     $countryFactory
-     * @param \Magento\Directory\Model\CurrencyFactory                    $currencyFactory
-     * @param \Magento\Directory\Helper\Data                              $directoryData
-     * @param \Magento\CatalogInventory\Api\StockRegistryInterface        $stockRegistry
-     * @param \LaPoste\Colissimo\Helper\Data                              $helperData
-     * @param \LaPoste\Colissimo\Helper\CountryOffer                      $helperCountryOffer
-     * @param \LaPoste\Colissimo\Helper\Pdf                               $helperPdf
-     * @param \LaPoste\Colissimo\Model\Shipping\ReturnLabelGenerator      $returnLabelGenerator
-     * @param Session                                                     $customerSession
-     * @param ObjectManagerInterface                                      $objectManager
-     * @param \Magento\Checkout\Model\Session                             $checkoutSession
-     * @param OffersApi                                                   $offersApi
-     * @param DateTime                                                    $dateTime
-     * @param \Magento\Framework\Stdlib\DateTime\TimeZone                 $timeZone
-     * @param PricesRepository                                            $pricesRepository
-     * @param SearchCriteriaBuilder                                       $searchCriteriaBuilder
-     * @param RequestInterface                                            $requestInterface
-     * @param array                                                       $data
+     * @param GenerateLabelPayload                                 $generateLabelPayload
+     * @param LabellingApi                                         $labellingApi
+     * @param \LaPoste\Colissimo\Logger\Colissimo                  $colissimoLogger
+     * @param ScopeConfigInterface                                 $scopeInterface
+     * @param ErrorFactory                                         $rateErrorFactory
+     * @param LoggerInterface                                      $logger
+     * @param Security                                             $xmlSecurity
+     * @param ElementFactory                                       $xmlElFactory
+     * @param ResultFactory                                        $rateFactory
+     * @param MethodFactory                                        $rateMethodFactory
+     * @param \Magento\Shipping\Model\Tracking\ResultFactory       $trackFactory
+     * @param \Magento\Shipping\Model\Tracking\Result\ErrorFactory $trackErrorFactory
+     * @param StatusFactory                                        $trackStatusFactory
+     * @param RegionFactory                                        $regionFactory
+     * @param CountryFactory                                       $countryFactory
+     * @param CurrencyFactory                                      $currencyFactory
+     * @param \Magento\Directory\Helper\Data                       $directoryData
+     * @param StockRegistryInterface                               $stockRegistry
+     * @param Data                                                 $helperData
+     * @param CountryOffer                                         $helperCountryOffer
+     * @param Pdf                                                  $helperPdf
+     * @param ReturnLabelGenerator                                 $returnLabelGenerator
+     * @param Session                                              $customerSession
+     * @param ObjectManagerInterface                               $objectManager
+     * @param \Magento\Checkout\Model\Session                      $checkoutSession
+     * @param OffersApi                                            $offersApi
+     * @param TimeZone                                             $timeZone
+     * @param PricesRepository                                     $pricesRepository
+     * @param SearchCriteriaBuilder                                $searchCriteriaBuilder
+     * @param RequestInterface                                     $requestInterface
+     * @param Http                                                 $requestQuery
+     * @param CategoryRepositoryInterface                          $categoryRepository
+     * @param array                                                $data
      */
     public function __construct(
-        \LaPoste\Colissimo\Api\Carrier\GenerateLabelPayload $generateLabelPayload,
-        \LaPoste\Colissimo\Api\Carrier\LabellingApi $labellingApi,
+        GenerateLabelPayload $generateLabelPayload,
+        LabellingApi $labellingApi,
         \LaPoste\Colissimo\Logger\Colissimo $colissimoLogger,
-        \Magento\Framework\App\Config\ScopeConfigInterface $scopeInterface,
-        \Magento\Quote\Model\Quote\Address\RateResult\ErrorFactory $rateErrorFactory,
-        \Psr\Log\LoggerInterface $logger,
-        \Magento\Framework\Xml\Security $xmlSecurity,
-        \Magento\Shipping\Model\Simplexml\ElementFactory $xmlElFactory,
-        \Magento\Shipping\Model\Rate\ResultFactory $rateFactory,
-        \Magento\Quote\Model\Quote\Address\RateResult\MethodFactory $rateMethodFactory,
+        ScopeConfigInterface $scopeInterface,
+        ErrorFactory $rateErrorFactory,
+        LoggerInterface $logger,
+        Security $xmlSecurity,
+        ElementFactory $xmlElFactory,
+        ResultFactory $rateFactory,
+        MethodFactory $rateMethodFactory,
         \Magento\Shipping\Model\Tracking\ResultFactory $trackFactory,
         \Magento\Shipping\Model\Tracking\Result\ErrorFactory $trackErrorFactory,
-        \Magento\Shipping\Model\Tracking\Result\StatusFactory $trackStatusFactory,
-        \Magento\Directory\Model\RegionFactory $regionFactory,
-        \Magento\Directory\Model\CountryFactory $countryFactory,
-        \Magento\Directory\Model\CurrencyFactory $currencyFactory,
+        StatusFactory $trackStatusFactory,
+        RegionFactory $regionFactory,
+        CountryFactory $countryFactory,
+        CurrencyFactory $currencyFactory,
         \Magento\Directory\Helper\Data $directoryData,
-        \Magento\CatalogInventory\Api\StockRegistryInterface $stockRegistry,
+        StockRegistryInterface $stockRegistry,
         Data $helperData,
         CountryOffer $helperCountryOffer,
         Pdf $helperPdf,
@@ -192,11 +221,14 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
         ObjectManagerInterface $objectManager,
         \Magento\Checkout\Model\Session $checkoutSession,
         OffersApi $offersApi,
-        \Magento\Framework\Stdlib\DateTime\TimeZone $timeZone,
+        TimeZone $timeZone,
         PricesRepository $pricesRepository,
         SearchCriteriaBuilder $searchCriteriaBuilder,
-        \Magento\Framework\App\RequestInterface $requestInterface,
-        \Magento\Framework\App\Request\Http $requestQuery,
+        RequestInterface $requestInterface,
+        Http $requestQuery,
+        CategoryRepositoryInterface $categoryRepository,
+        ProductRepositoryInterface $productRepository,
+        Registry $registry,
         array $data = []
     ) {
         parent::__construct(
@@ -236,6 +268,9 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
         $this->searchCriteriaBuilder = $searchCriteriaBuilder;
         $this->requestInterface = $requestInterface;
         $this->requestQuery = $requestQuery;
+        $this->categoryRepository = $categoryRepository;
+        $this->productRepository = $productRepository;
+        $this->registry = $registry;
     }
 
     public function getAllowedMethods(): array
@@ -372,16 +407,16 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
     }
 
     /**
-     * @param \Magento\Framework\DataObject                            $request
-     * @param \LaPoste\Colissimo\Api\Carrier\GenerateLabelPayload      $labelGenerationPayload
-     * @param \LaPoste\Colissimo\Api\Carrier\GenerateLabelPayload|null $returnLabelGenerationPayload
+     * @param \Magento\Framework\DataObject $request
+     * @param GenerateLabelPayload          $labelGenerationPayload
+     * @param GenerateLabelPayload|null     $returnLabelGenerationPayload
      *
      * @return \Magento\Framework\DataObject
      */
     protected function makeRequest(
         DataObject $request,
-        \LaPoste\Colissimo\Api\Carrier\GenerateLabelPayload $labelGenerationPayload,
-        ?\LaPoste\Colissimo\Api\Carrier\GenerateLabelPayload $returnLabelGenerationPayload = null
+        GenerateLabelPayload $labelGenerationPayload,
+        ?GenerateLabelPayload $returnLabelGenerationPayload = null
     ) {
         $result = new DataObject();
         try {
@@ -417,7 +452,7 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
                 $result->setCn23Content($cn23Binary);
             }
 
-            if (!is_null($returnLabelGenerationPayload) && $returnLabelGenerationPayload instanceof \LaPoste\Colissimo\Api\Carrier\GenerateLabelPayload) {
+            if (!is_null($returnLabelGenerationPayload) && $returnLabelGenerationPayload instanceof GenerateLabelPayload) {
                 // Set manually the original tracking number needed for CN23 (not saved yet in database so not added when creating return payload)
                 $returnLabelGenerationPayload->setOriginalTrackingNumber($parcelNumber);
 
@@ -515,7 +550,7 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
      *
      * @param \Magento\Framework\DataObject $request
      *
-     * @return \LaPoste\Colissimo\Api\Carrier\GenerateLabelPayload
+     * @return GenerateLabelPayload
      * @throws \Exception
      */
     protected function mapRequestToShipment(DataObject $request)
@@ -617,6 +652,7 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
         }
 
         $storeId = $request->getStoreId();
+        $isAutomatic = $this->registry->registry(self::AUTOMATIC_LABEL_GENERATION) === true;
 
         $payload = $this->generateLabelPayload->resetPayload()
                                               ->withCredentials($storeId)
@@ -637,18 +673,29 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
                                                   $recipient['zipCode'],
                                                   $storeId,
                                                   $originCountryId,
-                                                  $shippingType
+                                                  $shippingType,
+                                                  $shippingMethodUsed
                                               )
                                               ->withPostalNetwork($recipient['countryCode'], $productCode, $shippingMethodUsed)
                                               ->withDdp(
                                                   $shipment,
                                                   $shippingMethodUsed,
-                                                  $recipient
+                                                  $recipient,
+                                                  $recipient['countryCode'],
+                                                  $storeId
                                               )
                                               ->withFtd($recipient['countryCode'], $storeId)
                                               ->withMultiShipping($order, $shipment, $multiShippingData, $shipmentData)
                                               ->withBlockingCode($shippingMethodUsed, $packageItems, $order, $shipment, $postData, $storeId)
-                                              ->withCODAmount($productCode, $packageItems, $storeId);
+                                              ->withCODAmount($productCode, $packageItems, $storeId)
+                                              ->withHazmat(
+                                                  $isAutomatic,
+                                                  $shipment,
+                                                  $packageItems,
+                                                  $originCountryId,
+                                                  $recipient['countryCode'],
+                                                  $storeId
+                                              );
 
         if ($shippingMethodUsed == self::CODE_SHIPPING_METHOD_RELAY) {
             $payload->withPickupLocationId($order->getLpcRelayId());
@@ -725,13 +772,16 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
             throw new \Exception(__('Inward label not allowed for this destination'));
         }
 
-        $shippingInstructions = $request->getOrderShipment()->getOrder()->getLpcShippingNote();
+        $orderShipment = $request->getOrderShipment();
+        $shippingInstructions = $orderShipment->getOrder()->getLpcShippingNote();
         if (empty($shippingInstructions)) {
             $shippingInstructions = $request->getInstructions();
         }
 
         $shippingMethodUsed = $request->getShippingMethod();
         $storeId = $request->getStoreId();
+        $packageItems = $request->getPackageItems();
+        $isAutomatic = $this->registry->registry(self::AUTOMATIC_LABEL_GENERATION) === true;
 
         $payload = $this->generateLabelPayload->resetPayload()
                                               ->isReturnLabel()
@@ -745,15 +795,23 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
                                               ->withProductCode($productCode)
                                               ->withOutputFormat($request->getOutputFormat(), $storeId, $productCode)
                                               ->withInstructions($shippingInstructions)
-                                              ->withOrderNumber($request->getOrderShipment()->getOrder()->getIncrementId())
-                                              ->withPackage($request->getPackageParams(), $request->getPackageItems())
+                                              ->withOrderNumber($orderShipment->getOrder()->getIncrementId())
+                                              ->withPackage($request->getPackageParams(), $packageItems)
                                               ->withCustomsDeclaration(
-                                                  $request->getOrderShipment(),
-                                                  $request->getPackageItems(),
+                                                  $orderShipment,
+                                                  $packageItems,
                                                   $sender['countryCode'],
                                                   $sender['zipCode'],
                                                   $storeId,
                                                   $originCountryId
+                                              )
+                                              ->withHazmat(
+                                                  $isAutomatic,
+                                                  $orderShipment,
+                                                  $packageItems,
+                                                  $originCountryId,
+                                                  $sender['countryCode'],
+                                                  $storeId
                                               );
 
         // Insurance
@@ -795,9 +853,13 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
 
         $allItems = $request->getAllItems();
         $cartCategoriesByProduct = [];
+        $cartHazmatCategories = [];
+        $storeId = $request->getStoreId();
         foreach ($allItems as $item) {
             $product = $item->getProduct();
-            $cartCategoriesByProduct[] = $product->getCategoryIds();
+            $currentProductCategories = $product->getCategoryIds();
+            $cartCategoriesByProduct[] = $currentProductCategories;
+            $cartHazmatCategories = array_merge($cartHazmatCategories, $this->getProductHazmatCategories($product, $currentProductCategories, $storeId));
         }
 
         $beforeCoupons = $this->helperData->getConfigValue('carriers/lpc_group/price_before_coupons');
@@ -819,14 +881,18 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
 
         foreach (self::METHODS_CODES_TRANSLATIONS as $oneMethodCode => $methodName) {
             if ($this->helperData->getConfigValue('carriers/lpc_group/' . $oneMethodCode . '_enable')) {
-                $method = $this->getLpcShippingMethod($oneMethodCode,
-                                                      $destCountryId,
-                                                      $destPostCode,
-                                                      $cartPrice,
-                                                      $cartWeight,
-                                                      $originCountryId,
-                                                      $freeShipping,
-                                                      $cartCategoriesByProduct);
+                $method = $this->getLpcShippingMethod(
+                    $oneMethodCode,
+                    $destCountryId,
+                    $destPostCode,
+                    $cartPrice,
+                    $cartWeight,
+                    $originCountryId,
+                    $freeShipping,
+                    $cartCategoriesByProduct,
+                    $cartHazmatCategories
+                );
+
                 if (!empty($method)) {
                     $result->append($method);
                 }
@@ -836,19 +902,51 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
         return $result;
     }
 
+    private function getProductHazmatCategories(object $product, array $productCategoryIds, $storeId): array
+    {
+        $loadedProduct = $this->productRepository->getById($product->getId());
+        $hazmatCategoryId = $loadedProduct->getData(HazmatPatch::HAZMAT_ATTRIBUTE_CODE);
+
+        $hazmatCategories = [];
+        if (!empty($hazmatCategoryId)) {
+            $hazmatCategories[] = HazmatCategories::getCategorySlugFromId($hazmatCategoryId);
+
+            return $hazmatCategories;
+        }
+
+        static $loadedCategories = [];
+        foreach ($productCategoryIds as $categoryId) {
+            try {
+                if (!isset($loadedCategories[$categoryId])) {
+                    $loadedCategories[$categoryId] = $this->categoryRepository->get($categoryId, $storeId);
+                }
+
+                $hazmatCategoryId = $loadedCategories[$categoryId]->getData(HazmatPatch::HAZMAT_ATTRIBUTE_CODE_CATEGORY);
+                if (!empty($hazmatCategoryId)) {
+                    $hazmatCategories[] = HazmatCategories::getCategorySlugFromId($hazmatCategoryId);
+                }
+            } catch (\Exception $e) {
+                // category not found or inactive
+            }
+        }
+
+        return array_filter($hazmatCategories);
+    }
+
     /**
      * Build method if destination and weight fits configuration
      *
-     * @param $methodCode
-     * @param $destCountryId
-     * @param $destPostCode
-     * @param $cartPrice
-     * @param $cartWeight
-     * @param $originCountryId
-     * @param $freeShipping
-     * @param $cartCategoriesByProduct
+     * @param       $methodCode
+     * @param       $destCountryId
+     * @param       $destPostCode
+     * @param       $cartPrice
+     * @param       $cartWeight
+     * @param       $originCountryId
+     * @param       $freeShipping
+     * @param array $cartCategoriesByProduct
+     * @param array $cartHazmatCategories
      *
-     * @return \Magento\Quote\Model\Quote\Address\RateResult\Method|null
+     * @return Method|null
      */
     private function getLpcShippingMethod(
         $methodCode,
@@ -858,7 +956,8 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
         $cartWeight,
         $originCountryId,
         $freeShipping,
-        $cartCategoriesByProduct = []
+        array $cartCategoriesByProduct = [],
+        array $cartHazmatCategories = []
     ) {
         // DDP for GB must be commercial and between 160€ and 1050€
         $customsCategory = $this->helperData->getAdvancedConfigValue('lpc_labels/defaultCustomsCategory');
@@ -877,6 +976,24 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
             $extraCost = $this->helperData->getAdvancedConfigValue('lpc_ddp/extracost_' . strtolower($destCountryId));
         }
 
+        $isExtraCostHazmat = $this->helperData->getAdvancedConfigValue('lpc_hazmat/extraCost');
+        if ($isExtraCostHazmat && !empty($cartHazmatCategories)) {
+            $extraCostHazmat = 0;
+
+            $hazmatCategories = HazmatCategories::HAZMAT_CATEGORIES;
+            foreach ($cartHazmatCategories as $hazmatCategorySlug) {
+                if (empty($hazmatCategories[$hazmatCategorySlug])) {
+                    continue;
+                }
+
+                if ($extraCostHazmat < $hazmatCategories[$hazmatCategorySlug]['extra_cost']) {
+                    $extraCostHazmat = $hazmatCategories[$hazmatCategorySlug]['extra_cost'];
+                }
+            }
+
+            $extraCost += $extraCostHazmat;
+        }
+
         // Free shipping set for the method
         if ($this->helperData->getConfigValue('carriers/lpc_group/' . $methodCode . '_free')) {
             $method = $this->getMethodStructure($methodCode);
@@ -892,6 +1009,7 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
         if (empty($pricesItems)) {
             return null;
         }
+
         $slices = $this->helperCountryOffer->getSlicesForDestination(
             $methodCode,
             $destCountryId,
@@ -925,7 +1043,7 @@ class Colissimo extends AbstractCarrierOnline implements CarrierInterface
      *
      * @param $methodCode
      *
-     * @return \Magento\Quote\Model\Quote\Address\RateResult\Method
+     * @return Method
      */
     private function getMethodStructure($methodCode)
     {

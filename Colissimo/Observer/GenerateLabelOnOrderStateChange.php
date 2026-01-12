@@ -1,31 +1,27 @@
 <?php
 
-/*******************************************************
- * Copyright (C) 2018 La Poste.
- *
- * This file is part of La Poste - Colissimo module.
- *
- * La Poste - Colissimo module can not be copied and/or distributed without the express
- * permission of La Poste.
- *******************************************************/
-
 namespace LaPoste\Colissimo\Observer;
 
 use LaPoste\Colissimo\Helper\Data;
 use LaPoste\Colissimo\Helper\Shipment;
-use LaPoste\Colissimo\Logger\Colissimo;
+use LaPoste\Colissimo\Logger\Colissimo as Logger;
+use LaPoste\Colissimo\Model\Carrier\Colissimo;
 use Magento\Framework\App\RequestInterface;
+use Magento\Framework\Event\Observer;
+use Magento\Framework\Event\ObserverInterface;
+use Magento\Framework\Model\AbstractModel;
+use Magento\Framework\Registry;
 use Magento\Shipping\Model\Shipping\LabelGenerator;
 use Magento\Backend\Model\Auth\Session;
 
-class GenerateLabelOnOrderStateChange implements \Magento\Framework\Event\ObserverInterface
+class GenerateLabelOnOrderStateChange implements ObserverInterface
 {
     /**
      * @var Data
      */
     protected $helperData;
     /**
-     * @var Colissimo
+     * @var Logger
      */
     protected $logger;
     /**
@@ -45,23 +41,27 @@ class GenerateLabelOnOrderStateChange implements \Magento\Framework\Event\Observ
      */
     protected $authSession;
 
+    protected Registry $registry;
+
     /**
      * GenerateLabelOnOrderStateChange constructor.
      *
      * @param Data             $helperData
-     * @param Colissimo        $logger
+     * @param Logger           $logger
      * @param RequestInterface $request
      * @param LabelGenerator   $labelGenerator
      * @param Shipment         $shipmentHelper
      * @param Session          $authSession
+     * @param Registry         $registry
      */
     public function __construct(
         Data $helperData,
-        Colissimo $logger,
+        Logger $logger,
         RequestInterface $request,
         LabelGenerator $labelGenerator,
         Shipment $shipmentHelper,
-        Session $authSession
+        Session $authSession,
+        Registry $registry
     ) {
         $this->helperData = $helperData;
         $this->logger = $logger;
@@ -69,9 +69,10 @@ class GenerateLabelOnOrderStateChange implements \Magento\Framework\Event\Observ
         $this->labelGenerator = $labelGenerator;
         $this->shipmentHelper = $shipmentHelper;
         $this->authSession = $authSession;
+        $this->registry = $registry;
     }
 
-    public function execute(\Magento\Framework\Event\Observer $observer)
+    public function execute(Observer $observer)
     {
         try {
             if ($this->helperData->isUsingColiShip()) {
@@ -96,9 +97,9 @@ class GenerateLabelOnOrderStateChange implements \Magento\Framework\Event\Observ
 
             if (
                 empty($orderStatusesForGeneration)
-                || !($order instanceof \Magento\Framework\Model\AbstractModel)
+                || !($order instanceof AbstractModel)
                 || $order->getIsVirtual()
-                || (\LaPoste\Colissimo\Model\Carrier\Colissimo::CODE !== $order->getShippingMethod(true)->getCarrierCode())
+                || Colissimo::CODE !== $order->getShippingMethod(true)->getCarrierCode()
                 || !in_array($order->getStatus(), $orderStatusesForGeneration)
             ) {
                 return $this;
@@ -143,28 +144,24 @@ class GenerateLabelOnOrderStateChange implements \Magento\Framework\Event\Observ
                     ]
                 );
             }
-        } catch (\LocalizedException $e) {
-            $this->logger->error('An error occurred!', ['e' => $e]);
-        } catch (\Exception $e) {
+        } catch (\LocalizedException|\Exception $e) {
             $this->logger->error('An error occurred!', ['e' => $e]);
         }
 
         return $this;
     }
 
-
-    protected function generateLabel(\Magento\Sales\Model\Order\Shipment $shipment)
+    protected function generateLabel(\Magento\Sales\Model\Order\Shipment $shipment): void
     {
-        $packages = $this->shipmentHelper
-            ->shipmentToPackages($shipment);
-
-        $this->request
-            ->setParam('packages', $packages);
+        $packages = $this->shipmentHelper->shipmentToPackages($shipment);
+        $this->request->setParam('packages', $packages);
 
         try {
+            $this->registry->register(Colissimo::AUTOMATIC_LABEL_GENERATION, true);
             $this->labelGenerator->create($shipment, $this->request);
+            $this->registry->unregister(Colissimo::AUTOMATIC_LABEL_GENERATION);
         } catch (\LocalizedException $e) {
-            $this->logger->error('An error occured while generating label!', ['e' => $e]);
+            $this->logger->error('An error occurred while generating label!', ['e' => $e]);
         }
 
         $shipment->save();

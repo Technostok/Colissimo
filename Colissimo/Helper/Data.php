@@ -25,6 +25,29 @@ class Data extends AbstractHelper
     const XML_PATH_ADVANCED = 'lpc_advanced/';
     const MODULE_NAME = 'LaPoste_Colissimo';
     const LBS_IN_ONE_KG = 2.20462262185;
+    const DAYS = [
+        1 => 'Monday',
+        2 => 'Tuesday',
+        3 => 'Wednesday',
+        4 => 'Thursday',
+        5 => 'Friday',
+        6 => 'Saturday',
+        7 => 'Sunday',
+    ];
+    const MONTHS = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+    ];
 
     protected $moduleList;
     /**
@@ -233,5 +256,43 @@ class Data extends AbstractHelper
         }
 
         return (double) $weight;
+    }
+
+    public function translateDate(string $date): string {
+        foreach (self::DAYS as $day) {
+            $date = str_replace($day, __($day), $date);
+        }
+
+        foreach (self::MONTHS as $month) {
+            $date = str_replace($month, __($month), $date);
+            $date = str_replace(substr($month, 0, 3), mb_substr(__($month), 0, 3), $date);
+        }
+
+        return $date;
+    }
+
+    public function getFont(string $option): ?string {
+        $fontValue = $this->getAdvancedConfigValue($option);
+        if (empty($fontValue)) {
+            return null;
+        }
+
+        $fontNames = [
+            'georgia'       => 'Georgia, serif',
+            'palatino'      => '"Palatino Linotype", "Book Antiqua", Palatino, serif',
+            'times'         => '"Times New Roman", Times, serif',
+            'arial'         => 'Arial, Helvetica, sans-serif',
+            'arialblack'    => '"Arial Black", Gadget, sans-serif',
+            'comic'         => '"Comic Sans MS", cursive, sans-serif',
+            'impact'        => 'Impact, Charcoal, sans-serif',
+            'lucida'        => '"Lucida Sans Unicode", "Lucida Grande", sans-serif',
+            'tahoma'        => 'Tahoma, Geneva, sans-serif',
+            'trebuchet'     => '"Trebuchet MS", Helvetica, sans-serif',
+            'verdana'       => 'Verdana, Geneva, sans-serif',
+            'courier'       => '"Courier New", Courier, monospace',
+            'lucidaconsole' => '"Lucida Console", Monaco, monospace',
+        ];
+
+        return $fontNames[$fontValue] ?? null;
     }
 }

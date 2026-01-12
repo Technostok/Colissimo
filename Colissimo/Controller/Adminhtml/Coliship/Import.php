@@ -17,6 +17,7 @@ use LaPoste\Colissimo\Helper\Data;
 use LaPoste\Colissimo\Helper\Shipment;
 use LaPoste\Colissimo\Logger\Colissimo;
 use Magento\Backend\App\Action;
+use Magento\Backend\App\Action\Context;
 use Magento\Framework\App\ResponseInterface;
 use Magento\Framework\Event\Manager;
 use Magento\Framework\File\Csv;
@@ -24,6 +25,7 @@ use Magento\Sales\Api\OrderRepositoryInterface;
 use Magento\Sales\Model\Order\Shipment\TrackFactory;
 use Magento\Framework\Controller\ResultFactory;
 use Magento\Framework\Api\SearchCriteriaBuilder;
+use Magento\Shipping\Model\ShipmentNotifier;
 
 class Import extends Action
 {
@@ -72,20 +74,8 @@ class Import extends Action
      * @var \Magento\Framework\Api\SearchCriteriaBuilder
      */
     protected $searchCriteriaBuilder;
+    protected ShipmentNotifier $shipmentNotifier;
 
-    /**
-     * Import constructor.
-     *
-     * @param \Magento\Backend\App\Action\Context              $context
-     * @param \LaPoste\Colissimo\Helper\Data                   $helperData
-     * @param \Magento\Framework\File\Csv                      $csvParser
-     * @param \Magento\Sales\Api\OrderRepositoryInterface      $orderRepository
-     * @param \LaPoste\Colissimo\Helper\Shipment               $shipmentHelper
-     * @param \Magento\Sales\Model\Order\Shipment\TrackFactory $trackFactory
-     * @param \LaPoste\Colissimo\Logger\Colissimo              $logger
-     * @param \Magento\Framework\Event\Manager                 $eventManager
-     * @param \Magento\Framework\Api\SearchCriteriaBuilder     $searchCriteriaBuilder
-     */
     public function __construct(
         Action\Context $context,
         Data $helperData,
@@ -95,7 +85,8 @@ class Import extends Action
         TrackFactory $trackFactory,
         Colissimo $logger,
         Manager $eventManager,
-        SearchCriteriaBuilder $searchCriteriaBuilder
+        SearchCriteriaBuilder $searchCriteriaBuilder,
+        ShipmentNotifier $shipmentNotifier
     ) {
         parent::__construct($context);
         $this->helperData = $helperData;
@@ -106,6 +97,7 @@ class Import extends Action
         $this->logger = $logger;
         $this->eventManager = $eventManager;
         $this->searchCriteriaBuilder = $searchCriteriaBuilder;
+        $this->shipmentNotifier = $shipmentNotifier;
 
         $this->csvParser->setDelimiter(self::FILE_DELIMITER);
         $this->csvParser->setEnclosure(self::FILE_ENCLOSURE);
@@ -187,6 +179,10 @@ class Import extends Action
 
                 // Save created shipment and order
                 $shipment->save();
+                $this->shipmentNotifier->notify($shipment);
+                $shipment->setEmailSent(true);
+                $shipment->save();
+
                 $shipment->getOrder()->save();
 
                 $validOrderIds[] = $orderIncrementId;
@@ -219,7 +215,7 @@ class Import extends Action
      */
     public function onError($message)
     {
-        $this->messageManager->addErrorMessage(__('An error occurred during import: ', $message));
+        $this->messageManager->addErrorMessage(__('An error occurred during import: %1', $message));
         $this->logger->error($message);
     }
 

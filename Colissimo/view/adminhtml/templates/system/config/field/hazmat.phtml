@@ -1,0 +1,47 @@
+<?php /* @var $block \LaPoste\Colissimo\Block\System\Config\Field\Hazmat */ ?>
+
+<?php
+$hazmatData = $block->getHazmatData();
+
+if (empty($hazmatData['hazmatCategories'])) {
+    ?>
+    <script>
+        require([
+            'jquery'
+        ], function ($) {
+            $('#lpc_advanced_lpc_hazmat-link').closest('.section-config').hide();
+        });
+    </script>
+    <?php
+    return;
+}
+?>
+
+<div id="lpc_hazmat_description">
+    <p>
+        <?= $block->escapeHtml(__('The hazmat option lets you specify which parcel contains hazardous materials, ensuring that your goods are protected and safe during all the shipment.')); ?>
+    </p>
+    <p>
+        <?= $block->escapeHtml(__('There are a total of 5 categories of hazardous materials that can be specified on your products and/or product categories. The categories are as follows:')); ?>
+    </p>
+    <table style="margin-top: 2rem;">
+        <thead>
+            <tr>
+                <th><?= $block->escapeHtml(__('Category')); ?></th>
+                <th style="max-width: 90px; text-align: left;"><?= $block->escapeHtml(__('Maximum quantity per parcel')); ?></th>
+                <th><?= $block->escapeHtml(__('Extra cost')); ?></th>
+                <th><?= $block->escapeHtml(__('Activated')); ?></th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ($hazmatData['hazmatCategories'] as $category) { ?>
+                <tr>
+                    <td><?= $block->escapeHtml(__($category['label'])); ?></td>
+                    <td><?= empty($category['max_weight']) ? '-' : $block->escapeHtml($category['max_weight'] . 'g'); ?></td>
+                    <td><?= $block->escapeHtml($category['extra_cost']); ?> €</td>
+                    <td><?= $block->escapeHtml(__($category['active'] ? 'Yes' : 'No')); ?></td>
+                </tr>
+            <?php } ?>
+        </tbody>
+    </table>
+</div>

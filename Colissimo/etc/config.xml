@@ -16,8 +16,21 @@
         </carriers>
         <lpc_advanced>
             <lpc_general>
-                <connectionMode>login</connectionMode>
+                <connectionMode>api</connectionMode>
             </lpc_general>
+            <lpc_checkout>
+                <displayDeliveryDate>0</displayDeliveryDate>
+                <deliveryDateFormat>full</deliveryDateFormat>
+                <deliveryDateFont>default</deliveryDateFont>
+                <deliveryDateSize>default</deliveryDateSize>
+            </lpc_checkout>
+            <lpc_labels>
+                <cn23Number>4</cn23Number>
+                <hsCodeAttribute>lpc_hs_code</hsCodeAttribute>
+            </lpc_labels>
+            <lpc_hazmat>
+                <extraCost>0</extraCost>
+            </lpc_hazmat>
             <lpc_shipping>
                 <domicileas_block_code_min>0</domicileas_block_code_min>
             </lpc_shipping>
@@ -56,10 +69,6 @@
                 <extracost_gb>10</extracost_gb>
                 <extracost_us>18</extracost_us>
             </lpc_ddp>
-            <lpc_labels>
-                <cn23Number>4</cn23Number>
-                <hsCodeAttribute>lpc_hs_code</hsCodeAttribute>
-            </lpc_labels>
         </lpc_advanced>
     </default>
 </config>

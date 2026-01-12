@@ -43,57 +43,71 @@ class AccountInformation extends Field
             'securedReturn'                  => $accountInformation['optionRetourToken'] ? 'Activated' : 'Deactivated',
             'returnMailbox'                  => $accountInformation['optionRetourBAL'] ? 'Activated' : 'Deactivated',
             'returnPostOffice'               => $accountInformation['optionRetourBP'] ? 'Activated' : 'Deactivated',
+            'hazmatCategories'               => $this->accountApi->getHazmatCategories(),
         ];
 
         $output = '<ul>
 			<li>
-				<span class="colissimo-account-information-label">' . __('Contract type:') . '</span>
-				<span class="colissimo-account-information-value">' . $args['contractType'] . '</span>
+				<span class="colissimo-account-information-label">' . $this->escapeHtml(__('Contract type:')) . '</span>
+				<span class="colissimo-account-information-value">' . $this->escapeHtml($args['contractType']) . '</span>
 			</li>
 			<li>
-				<span class="colissimo-account-information-label">' . __('Out-of-home contract type:') . '</span>
-				<span class="colissimo-account-information-value">' . $args['outOfHomeContract'] . '</span>
+				<span class="colissimo-account-information-label">' . $this->escapeHtml(__('Out-of-home contract type:')) . '</span>
+				<span class="colissimo-account-information-value">' . $this->escapeHtml($args['outOfHomeContract']) . '</span>
 			</li>
 			<li>
-				<span class="colissimo-account-information-label">' . __('Pickup neighbor-relay option:') . '</span>
-				<span class="colissimo-account-information-value">' . __($args['pickupNeighborRelay']) . '</span>
+				<span class="colissimo-account-information-label">' . $this->escapeHtml(__('Pickup neighbor-relay option:')) . '</span>
+				<span class="colissimo-account-information-value">' . $this->escapeHtml(__($args['pickupNeighborRelay'])) . '</span>
 			</li>
 			<li>
-				<span class="colissimo-account-information-label">' . __('Mimosa option:') . '</span>
-				<span class="colissimo-account-information-value">' . __($args['mimosa']) . '</span>
+				<span class="colissimo-account-information-label">' . $this->escapeHtml(__('Mimosa option:')) . '</span>
+				<span class="colissimo-account-information-value">' . $this->escapeHtml(__($args['mimosa'])) . '</span>
 			</li>
 			<li>
-				<span class="colissimo-account-information-label">' . __('Secured shipping option:') . '</span>
-				<span class="colissimo-account-information-value">' . __($args['securedShipping']) . '</span>
+				<span class="colissimo-account-information-label">' . $this->escapeHtml(__('Secured shipping option:')) . '</span>
+				<span class="colissimo-account-information-value">' . $this->escapeHtml(__($args['securedShipping'])) . '</span>
 			</li>
 			<li>
-				<span class="colissimo-account-information-label">' . __('Estimated shipping date option:') . '</span>
-				<span class="colissimo-account-information-value">' . __($args['estimatedShippingDate']) . '</span>
+				<span class="colissimo-account-information-label">' . $this->escapeHtml(__('Hazardous materials feature:')) . '</span>
+				<span class="colissimo-account-information-value">' . $this->escapeHtml(__(empty($args['hazmatCategories']) ? 'Deactivated' : 'Activated')) . '</span>
+			</li>';
+
+        if (!empty($args['hazmatCategories'])) {
+            $output .= '<li><ul class="lpc_hazmat_list">';
+            foreach ($args['hazmatCategories'] as $category) {
+                $output .= '<li>' . $this->escapeHtml(__($category['label'])) . ' : ' . $this->escapeHtml(__($category['active'] ? 'Activated' : 'Deactivated')) . '</li>';
+            }
+            $output .= '</ul></li>';
+        }
+
+        $output .= '<li>
+				<span class="colissimo-account-information-label">' . $this->escapeHtml(__('Estimated shipping date option:')) . '</span>
+				<span class="colissimo-account-information-value">' . $this->escapeHtml(__($args['estimatedShippingDate'])) . '</span>
 			</li>';
 
         if ('Activated' === $args['estimatedShippingDate'] && !empty($args['estimatedShippingDateDepotList'])) {
             $output .= '<li>
-                <span class="colissimo-account-information-label">' . __('Your Colissimo deposit places:') . '</span>
+                <span class="colissimo-account-information-label">' . $this->escapeHtml(__('Your Colissimo deposit places:')) . '</span>
                 <ul class="lpc_depot_list">';
 
             foreach ($args['estimatedShippingDateDepotList'] as $depot) {
-                $output .= '<li>' . $depot['codeRegate'] . ' - ' . $depot['libellepfc'] . '</li>';
+                $output .= '<li>' . $this->escapeHtml($depot['codeRegate'] . ' - ' . $depot['libellepfc']) . '</li>';
             }
 
             $output .= '</ul></li>';
         }
 
         $output .= '<li>
-				<span class="colissimo-account-information-label">' . __('Secured return option:') . '</span>
-				<span class="colissimo-account-information-value">' . __($args['securedReturn']) . '</span>
+				<span class="colissimo-account-information-label">' . $this->escapeHtml(__('Secured return option:')) . '</span>
+				<span class="colissimo-account-information-value">' . $this->escapeHtml(__($args['securedReturn'])) . '</span>
 			</li>
 			<li>
-				<span class="colissimo-account-information-label">' . __('Return in mailbox option:') . '</span>
-				<span class="colissimo-account-information-value">' . __($args['returnMailbox']) . '</span>
+				<span class="colissimo-account-information-label">' . $this->escapeHtml(__('Return in mailbox option:')) . '</span>
+				<span class="colissimo-account-information-value">' . $this->escapeHtml(__($args['returnMailbox'])) . '</span>
 			</li>
 			<li>
-				<span class="colissimo-account-information-label">' . __('Return in post office option:') . '</span>
-				<span class="colissimo-account-information-value">' . __($args['returnPostOffice']) . '</span>
+				<span class="colissimo-account-information-label">' . $this->escapeHtml(__('Return in post office option:')) . '</span>
+				<span class="colissimo-account-information-value">' . $this->escapeHtml(__($args['returnPostOffice'])) . '</span>
 			</li>
 		</ul>';
 

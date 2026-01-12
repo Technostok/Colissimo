@@ -11,6 +11,8 @@
 
 namespace LaPoste\Colissimo\Api\Carrier;
 
+use Magento\Sales\Model\Order\Shipment;
+
 interface GenerateLabelPayload
 {
     /**
@@ -144,6 +146,20 @@ interface GenerateLabelPayload
     public function withCODAmount(string $productCode, array $items, $storeId = null);
 
     /**
+     * Adds the hazmat quantities and blocks the generation if needed.
+     *
+     * @return GenerateLabelPayload
+     */
+    public function withHazmat(
+        bool $isAutomaticGeneration,
+        Shipment $shipment,
+        array $items,
+        $originCountryId,
+        $destinationCountryId,
+        $storeId
+    );
+
+    /**
      * Flag this payload for ReturnReceipt.
      *
      * @return GenerateLabelPayload
@@ -162,20 +178,21 @@ interface GenerateLabelPayload
      * @see Articles-based customs info are put by withPackage
      */
     public function withCustomsDeclaration(
-        \Magento\Sales\Model\Order\Shipment $shipment,
+        Shipment $shipment,
         array $items,
         $destinationCountryId,
         $destinationPostcode,
         $storeId = null,
         $originCountryId = 'fr',
-        $shippingType = null
+        $shippingType = null,
+        $shippingMethodUsed = ''
     );
 
     /**
      * Associates parameters for DDP methods
      * @return GenerateLabelPayload
      */
-    public function withDdp($shipment, $shippingMethod, $recipient);
+    public function withDdp($shipment, $shippingMethod, $recipient, $destinationCountryId, $storeId = null);
 
     /**
      * Disable blocking code for signature shipments

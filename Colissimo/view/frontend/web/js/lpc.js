@@ -42,7 +42,8 @@ define([
             const bounds = new google.maps.LatLngBounds();
 
             markers.each(function (index, element) {
-                const relayPosition = new google.maps.LatLng($(this).find('.lpc_layer_relay_latitude').text(),
+                const relayPosition = new google.maps.LatLng(
+                    $(this).find('.lpc_layer_relay_latitude').text(),
                     $(this).find('.lpc_layer_relay_longitude').text()
                 );
 
@@ -319,7 +320,8 @@ define([
         const lpcRelayDistanceTmp = relayClicked.find('.lpc_layer_relay_distance_nb').text();
         const lpcRelayHourTmp = relayClicked.find('.lpc_layer_relay_hour').html();
 
-        lpcChooseRelay(lpcRelayIdTmp,
+        lpcChooseRelay(
+            lpcRelayIdTmp,
             lpcRelayNameTmp,
             lpcRelayAddressTmp,
             lpcRelayZipcodeTmp,
@@ -558,7 +560,11 @@ define([
                 if ($lpcColor1.length > 0) {
                     widgetOptions.couleur1 = $lpcColor1.val();
                     widgetOptions.couleur2 = $('#lpc_color_2').val();
-                    widgetOptions.font = $('#lpc_font').val();
+
+                    const $lpcFont = $('#lpc_font');
+                    if ($lpcFont.length > 0) {
+                        widgetOptions.font = $lpcFont.val();
+                    }
                 }
 
                 $('#lpc_widget_container').frameColissimoOpen(widgetOptions);
@@ -623,7 +629,6 @@ define([
                 city: city,
                 countryId: countryId,
                 loadMore: loadMore ? 1 : 0
-
             };
 
             $.ajax({
@@ -743,7 +748,8 @@ define([
                 }
             }
 
-            lpcChooseRelay(lpcRelayIdTmp,
+            lpcChooseRelay(
+                lpcRelayIdTmp,
                 lpcRelayNameTmp,
                 lpcRelayAddressTmp,
                 lpcRelayZipcodeTmp,

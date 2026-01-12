@@ -69,7 +69,7 @@ class GenerateRelaysPayload implements \LaPoste\Colissimo\Api\RelaysWebservice\G
     {
         if (null === $shippingDate) {
             $shippingDate = new \DateTime();
-            $numberOfDayPreparation = (int) $this->helperData->getAdvancedConfigValue('lpc_labels/averagePreparationDelay');
+            $numberOfDayPreparation = (int) $this->helperData->getAdvancedConfigValue('lpc_checkout/averagePreparationDelay');
             $shippingDate->add(new \DateInterval('P' . $numberOfDayPreparation . 'D'));
         }
 

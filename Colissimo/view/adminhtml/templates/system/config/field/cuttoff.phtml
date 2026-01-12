@@ -1,0 +1,286 @@
+<?php /* @var $block \LaPoste\Colissimo\Block\System\Config\Field\CuttOff */ ?>
+
+<?php
+$hours = $block->getHours();
+$days = $block->getDays();
+$storedValues = $block->getValues();
+?>
+
+<template id="lpc_delivery_date_exception_template">
+    <div class="exception-item">
+        <input type="date" class="exception-date" aria-label="Exception date">
+        <select class="exception-hour" aria-label="Exception cutt off hour">
+            <?php
+            foreach ($hours as $value => $time) {
+                echo '<option value="' . $block->escapeHtmlAttr($value) . '">' . $block->escapeHtml($time) . '</option>';
+            }
+            ?>
+        </select>
+        <button class="remove-btn">×</button>
+    </div>
+</template>
+
+<div class="lpc_cuttoff_container">
+    <div class="lpc_cuttoff_content-wrapper">
+        <!-- Weekly Schedule -->
+        <div>
+            <h3><?= $block->escapeHtml(__('Weekly Schedule')); ?></h3>
+            <div class="weekly-schedule">
+                <table id="weeklyTable">
+                    <thead>
+                        <tr>
+                            <th><?= $block->escapeHtml(__('Day')); ?></th>
+                            <th><?= $block->escapeHtml(__('Cutt Off times for orders processing')); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($days as $day) { ?>
+                            <tr>
+                                <td><?= $block->escapeHtml(__($day)); ?></td>
+                                <td>
+                                    <select class="day-select" data-day="<?= $block->escapeHtmlAttr($day); ?>">
+                                        <?php
+                                        foreach ($hours as $value => $time) {
+                                            echo '<option value="' . $block->escapeHtmlAttr($value) . '">' . $block->escapeHtml($time) . '</option>';
+                                        }
+                                        ?>
+                                    </select>
+                                </td>
+                            </tr>
+                        <?php } ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Exceptions -->
+        <div>
+            <h3><?= $block->escapeHtml(__('Exceptions')); ?></h3>
+            <div class="exceptions-section">
+                <button class="add-exception-btn secondary" id="addExceptionBtn">
+                    <span class="plus-icon">+</span>
+                    <?= $block->escapeHtml(__('Add Exception')); ?>
+                </button>
+                <div class="exceptions-list" id="exceptionsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <input type="hidden" id="cuttOffInitialValues" value="<?= $block->escapeHtmlAttr($storedValues); ?>" />
+    <input type="hidden" id="scheduleData" name="groups[lpc_checkout][fields][deliveryDateCuttoffTimes][value]" />
+</div>
+
+<script>
+    require([
+        'jquery'
+    ], function ($) {
+        initializeWeeklySchedule();
+        handleExceptions();
+        initialValues();
+
+        function initializeWeeklySchedule() {
+            // Bind change event
+            $(document).on('change', '.day-select', function () {
+                updateJsonOutput();
+            });
+        }
+
+        function handleExceptions() {
+            // Add exception
+            $('#addExceptionBtn').on('click', function (event) {
+                event.preventDefault();
+
+                const exceptionItem = $('#lpc_delivery_date_exception_template').html();
+                $('#exceptionsList').append(exceptionItem);
+
+                updateJsonOutput();
+            });
+
+            // Remove exception
+            $(document).on('click', '.remove-btn', function () {
+                $(this).closest('.exception-item').remove();
+                updateJsonOutput();
+            });
+
+            // Update JSON on exception changes
+            $(document).on('change', '.exception-date, .exception-hour', function () {
+                updateJsonOutput();
+            });
+        }
+
+        function initialValues() {
+            const jsonValues = $('#cuttOffInitialValues').val();
+
+            if (jsonValues) {
+                const data = JSON.parse(jsonValues);
+
+                // Set weekly schedule
+                for (const [weekDay, time] of Object.entries(data.weekly_schedule)) {
+                    $(`.day-select[data-day="${weekDay}"]`).val(time);
+                }
+
+                // Set exceptions
+                if (data.exceptions && Array.isArray(data.exceptions)) {
+                    data.exceptions.forEach(exception => {
+                        // TODO: ignore past dates?
+
+                        const $exceptionElement = $($('#lpc_delivery_date_exception_template').html());
+                        $exceptionElement.find('.exception-date').val(exception.date);
+                        $exceptionElement.find('.exception-hour').val(exception.hour);
+                        $('#exceptionsList').append($exceptionElement);
+                    });
+                }
+            }
+
+            updateJsonOutput();
+        }
+
+        function updateJsonOutput() {
+            const schedule = {};
+            const days = [
+                'Monday',
+                'Tuesday',
+                'Wednesday',
+                'Thursday',
+                'Friday',
+                'Saturday',
+                'Sunday'
+            ];
+
+            // Collect weekly schedule
+            days.forEach(day => {
+                schedule[day] = $(`.day-select[data-day="${day}"]`).val();
+            });
+
+            // Collect exceptions
+            const exceptionsList = [];
+            $('.exception-item').each(function () {
+                const date = $(this).find('.exception-date').val();
+                const hour = $(this).find('.exception-hour').val();
+                if (date && hour) {
+                    exceptionsList.push({
+                        date: date,
+                        hour: hour
+                    });
+                }
+            });
+
+            const finalData = {
+                weekly_schedule: schedule,
+                exceptions: exceptionsList
+            };
+
+            // Update hidden input
+            $('#scheduleData').val(JSON.stringify(finalData));
+        }
+    });
+</script>
+
+<style>
+    .lpc_cuttoff_container{
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .lpc_cuttoff_content-wrapper{
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
+
+    /* Weekly Schedule Styles */
+    .weekly-schedule{
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+    }
+
+    .weekly-schedule table{
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .weekly-schedule th{
+        text-align: left;
+        padding: 12px;
+        border-bottom: 2px solid #e0e0e0;
+        font-weight: 600;
+        color: #666;
+        font-size: 14px;
+    }
+
+    .weekly-schedule td{
+        padding: 12px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .weekly-schedule tr:last-child td{
+        border-bottom: none;
+    }
+
+    /* Exceptions Styles */
+    .lpc_cuttoff_container .exceptions-section{
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+    }
+
+    .lpc_cuttoff_container .add-exception-btn{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+
+    .lpc_cuttoff_container .plus-icon{
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+    #exceptionsList{
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    #exceptionsList .exception-item{
+        display: grid;
+        grid-template-columns: 1fr 2fr auto;
+        gap: 12px;
+        align-items: center;
+        padding: 12px;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        background-color: #fafafa;
+    }
+
+    #weeklyTable td{
+        vertical-align: middle;
+        padding: 1rem 1.5rem 1rem 0;
+    }
+
+    .lpc_cuttoff_container .remove-btn{
+        width: 21px;
+        height: 21px;
+        border: none;
+        background-color: #ff6b6b;
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background-color 0.2s;
+    }
+
+    .lpc_cuttoff_container .remove-btn:hover{
+        background-color: #ee5a52;
+    }
+
+    @media (max-width: 768px){
+        #exceptionsList .exception-item{
+            grid-template-columns: 1fr;
+        }
+    }
+</style>

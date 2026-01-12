@@ -27,6 +27,7 @@ class CustomConfigProvider implements ConfigProviderInterface
 
         return [
             'colissimoIconUrl' => $colissimoIconUrl,
+            'deliveryDate'     => (bool) $this->helperData->getAdvancedConfigValue('lpc_checkout/displayDeliveryDate'),
         ];
     }
 }

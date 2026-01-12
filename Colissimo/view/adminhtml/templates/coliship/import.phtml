@@ -8,8 +8,6 @@
     <form action="<?= $block->escapeUrl($block->getImportUrl()); ?>"
           method="POST"
           enctype="multipart/form-data">
-
-
         <input type="hidden"
                name="form_key"
                value="<?= $block->escapeHtmlAttr($block->getFormKey()); ?>">
@@ -40,6 +38,5 @@
                 </div>
             </div>
         </fieldset>
-
     </form>
 </div>

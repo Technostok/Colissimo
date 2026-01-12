@@ -2,12 +2,20 @@ define([
     'jquery',
     'lpc',
     'Magento_Ui/js/modal/modal',
-    'Magento_Checkout/js/model/quote'
-], function ($, lpc, modal, quote) {
+    'Magento_Checkout/js/model/quote',
+    'mage/url',
+    'underscore'
+], function ($, lpc, modal, quote, urlBuilder, _) {
     'use strict';
     let pickupAutoSelectInit;
 
     const mixin = {
+        initialize: function () {
+            this._super();
+            this.initDeliveryDate();
+
+            return this;
+        },
         selectShippingMethod: function (shippingMethod) {
             // Dispay Colissimo shipping information input
             if ('colissimo' === shippingMethod.carrier_code) {
@@ -31,13 +39,11 @@ define([
 
             return this._super();
         },
-
         setShippingInformation: function () {
             if (this.validateShippingInformation() && this.lpcValidateChoiceRelay()) {
                 this._super();
             }
         },
-
         lpcValidateChoiceRelay: function () {
             if (this.isShippingMethodRelayPoint()) {
                 if (!lpc.lpcGetRelayId()) {
@@ -91,11 +97,9 @@ define([
             lpc.lpcPublicSetRelayId('');
             return true;
         },
-
         isShippingMethodRelayPoint: function () {
             return quote.shippingMethod().carrier_code === 'colissimo' && quote.shippingMethod().method_code.indexOf('pr') !== -1;
         },
-
         /**
          * @return {Boolean}
          */
@@ -109,7 +113,6 @@ define([
 
             return result;
         },
-
         getImage: function (carrierCode) {
             this.initAutoSelectPickup();
 
@@ -119,7 +122,69 @@ define([
 
             return '<img alt="Logo Colissimo" src="' + window.checkoutConfig.colissimoIconUrl + '" width="40" class="lpc_method_icon">';
         },
+        initDeliveryDate: function () {
+            if (!quote.shippingAddress || !window.checkoutConfig.deliveryDate) {
+                return;
+            }
 
+            // Avoid calling multiple times at once
+            this._fetchDateDebounced = _.debounce(this.fetchDate.bind(this), 400);
+
+            // Re-fetch when zipcode changes
+            quote.shippingAddress.subscribe(this._fetchDateDebounced);
+
+            setTimeout(this._fetchDateDebounced, 1000);
+        },
+        fetchDate: function () {
+            const $dateContainers = $('.lpc-col-date.carrier-colissimo');
+            const shippingAddress = quote.shippingAddress && quote.shippingAddress();
+
+            if (!shippingAddress) {
+                $dateContainers.html('');
+                return;
+            }
+
+            const postcode = shippingAddress.postcode ?? '';
+            const countryCode = shippingAddress.countryId ?? 'FR';
+
+            if (!postcode || 'FR' !== countryCode) {
+                $dateContainers.html('');
+                return;
+            }
+
+            if (!window.lpcPostcodeDeliveryDates) {
+                window.lpcPostcodeDeliveryDates = [];
+            }
+
+            if (window.lpcPostcodeDeliveryDates[postcode]) {
+                $dateContainers.html(window.lpcPostcodeDeliveryDates[postcode]);
+                return;
+            }
+
+            $.ajax({
+                url: urlBuilder.build('lpc/checkout/DeliveryDate'),
+                type: 'GET',
+                dataType: 'json',
+                data: {
+                    postcode: postcode
+                },
+                beforeSend: function () {
+                    $dateContainers.html('');
+                },
+                success: function (response) {
+                    if (response.deliveryDate) {
+                        window.lpcPostcodeDeliveryDates[postcode] = response.deliveryDate;
+                        const intervalDate = setInterval(() => {
+                            const containers = $('.lpc-col-date.carrier-colissimo');
+                            if (containers.length > 0) {
+                                clearInterval(intervalDate);
+                                containers.html(response.deliveryDate);
+                            }
+                        }, 200);
+                    }
+                }
+            });
+        },
         initAutoSelectPickup: function () {
             clearTimeout(pickupAutoSelectInit);
             pickupAutoSelectInit = setTimeout(function () {
