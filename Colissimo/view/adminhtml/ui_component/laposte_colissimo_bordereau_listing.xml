@@ -1,14 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-/*******************************************************
- * Copyright (C) 2018 La Poste.
- *
- * This file is part of La Poste - Colissimo module.
- *
- * La Poste - Colissimo module can not be copied and/or distributed without the express
- * permission of La Poste.
- *******************************************************/
--->
 <listing xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Ui:etc/ui_configuration.xsd">
     <argument name="data" xsi:type="array">
         <item name="js_config" xsi:type="array">
@@ -19,7 +9,7 @@
     </argument>
     <dataSource name="laposte_colissimo_bordereau_listing_data_source">
         <argument name="dataProvider" xsi:type="configurableObject">
-            <argument name="class" xsi:type="string">LaPosteBordereauGridDataProvider</argument>
+            <argument name="class" xsi:type="string">LaPoste\Colissimo\Ui\DataProvider\Bordereau\GridDataProvider</argument>
             <argument name="name" xsi:type="string">laposte_colissimo_bordereau_listing_data_source</argument>
             <argument name="primaryFieldName" xsi:type="string">entity_id</argument>
             <argument name="requestFieldName" xsi:type="string">id</argument>

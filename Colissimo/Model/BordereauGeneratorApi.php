@@ -79,7 +79,6 @@ class BordereauGeneratorApi implements \LaPoste\Colissimo\Api\BordereauGenerator
 
         $this->logger->debug(__METHOD__ . ' response', ['response' => $response->messages]);
 
-
         if (!empty($response->messages->id)) {
             $this->logger->error(
                 __METHOD__ . ' error in API response',
@@ -128,25 +127,11 @@ class BordereauGeneratorApi implements \LaPoste\Colissimo\Api\BordereauGenerator
             'exceptions'      => true,
         ];
 
-        if ('api' === $this->helperData->getAdvancedConfigValue('lpc_general/connectionMode')) {
-            $apiKey = $this->helperData->getAdvancedConfigValue('lpc_general/api_key');
-            $dataLogger['apiKey'] = $apiKey;
-            $request['stream_context'] = stream_context_create(
-                [
-                    'http' => [
-                        'header' => [
-                            'apiKey: ' => $apiKey,
-                        ],
-                    ],
-                ]
-            );
-        } else {
-            $login = $this->helperData->getAdvancedConfigValue('lpc_general/id_webservices');
-            $password = $this->helperData->getAdvancedConfigValue('lpc_general/pwd_webservices');
-            $dataLogger['login'] = $login;
-            $request['contractNumber'] = $login;
-            $request['password'] = $password;
-        }
+        $login = $this->helperData->getAdvancedConfigValue('lpc_general/id_webservices');
+        $password = $this->helperData->getAdvancedConfigValue('lpc_general/pwd_webservices');
+        $dataLogger['login'] = $login;
+        $request['contractNumber'] = $login;
+        $request['password'] = $password;
 
         $this->logger->debug(__METHOD__ . ' request', $dataLogger);
 

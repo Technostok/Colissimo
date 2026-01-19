@@ -24,6 +24,7 @@
         <column xsi:type="smallint" name="number_of_parcels" nullable="false" comment="Nombre de colis"/>
         <column xsi:type="text" name="parcels_numbers" nullable="false" comment="Numeros des colis"/>
         <column xsi:type="datetime" name="publishing_date" nullable="false" comment="Date de generation du bordereau"/>
+        <column xsi:type="mediumblob" name="delivery_slip" nullable="true" comment="PDF du bordereau"/>
     </table>
     <table name="quote">
         <column xsi:type="varchar" name="lpc_shipping_note" nullable="true" comment="La Poste Colissimo shipping note"/>

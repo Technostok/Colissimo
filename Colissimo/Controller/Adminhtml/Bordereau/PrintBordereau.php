@@ -44,14 +44,18 @@ class PrintBordereau extends \Magento\Backend\App\Action
             $bordereauEntity = $this->bordereau
                 ->load($this->getRequest()->getParam('entity_id'));
 
-            $bordereau = $this->bordereauGeneratorApi
-                ->getBordereauByNumber($bordereauEntity->getBordereauNumber());
+            $deliverySlip = $bordereauEntity->getDeliverySlip();
 
-            $content = $bordereau->bordereau->bordereauDataHandler;
-            if ($content) {
+            if (empty($deliverySlip)) {
+                $bordereau = $this->bordereauGeneratorApi
+                    ->getBordereauByNumber($bordereauEntity->getBordereauNumber());
+                $deliverySlip = $bordereau->bordereau->bordereauDataHandler;
+            }
+
+            if ($deliverySlip) {
                 return $this->fileFactory->create(
                     'Bordereau(' . $bordereauEntity->getEntityId() . ').pdf',
-                    $content,
+                    $deliverySlip,
                     \Magento\Framework\App\Filesystem\DirectoryList::VAR_DIR,
                     'application/pdf'
                 );

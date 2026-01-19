@@ -77,6 +77,7 @@ class Bordereau extends AbstractHelper
                                    ->setNumberOfParcels($bordereauHeader->numberOfParcels)
                                    ->setParcelsNumbers(implode(',', $oneBatchOfTrack))
                                    ->setPublishingDate($bordereauHeader->publishingDate)
+                                   ->setDeliverySlip($retrievedBordereau->bordereau->bordereauDataHandler)
                                    ->save();
         }
 
